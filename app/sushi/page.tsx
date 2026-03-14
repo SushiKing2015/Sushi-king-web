@@ -29,7 +29,7 @@ export default function Sushi() {
     { name: "Squid Salad", calories: 130, image: "Squid salad.jpeg" },
     { name: "King Mini Combo", calories: 0, image: "King Mini Combo.jpeg" },
     { name: "King Deluxe Combo", calories: 0, image: "King Deluxe Combo.jpeg" },
-    { name: "Mountain Roll", calories: 0, image: "Mountain Roll.Jpeg" },
+    { name: "Mountain Roll", calories: 0, image: "Mountain Roll.jpeg" },
     { name: "Deluxe Moon Roll", calories: 0, image: "Deluxe Moon Roll.jpeg" },
     { name: "Party Tray", calories: 0, image: "Party tray1.jpeg" },
     { name: "Party Tray", calories: 0, image: "Party tray2.jpeg" },
