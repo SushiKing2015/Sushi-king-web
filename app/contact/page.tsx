@@ -18,8 +18,8 @@ export default function Contact() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-navy mb-8">
               CONTACT US
             </h1>
-            <p className="text-xl text-black font-bold max-w-3xl mx-auto">
-              Get in touch with us at +1 (812) 325-2823 or +1 (812) 327-9019 for questions or special orders.
+            <p className="text-xl text-black font-bold max-w-3xl mx-auto whitespace-pre-line">
+              {"Get in touch with us\nMarilyn Tial lang: +1 (812) 325-2823\nRonald Bawier: +1 (812) 327-9019"}
             </p>
           </div>
         </div>
