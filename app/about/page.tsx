@@ -43,7 +43,7 @@ export default function About() {
                   In August 2015, that vision became reality when Sushi King opened its first location in Bloomington, and sushi soon became available at Indiana University and more than 20 locations.
                 </p>
                 <p>
-                  Since then, Sushi King has continued to grow with the IU community. In August 2023, we expanded with a Poke Bowl and Boba Tea concept inside the Kelley School of Business. In 2025, another Sushi King location opened at Read Hall.
+                  Since then, Sushi King has continued to grow with the IU community. In August 2023, Sushi King expanded with a Poke Bowl and Boba Tea concept inside the Kelley School of Business. In 2025, another Sushi King location opened at Read Hall.
                 </p>
                 <p>
                   Sushi King is a true family journey, inspired by their three children: Chris Bawithawng Lian, Joshua Bawihlei Sang, and Caleb Bawivel Lian.
