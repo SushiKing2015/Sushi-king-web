@@ -38,11 +38,18 @@ export default function Sushi() {
   ]
 
   const sushiLocations = [
-    "125 Eagleson Ave, Bloomington, IN 47406",
-    "1309 E 10th St, Bloomington, IN 4705",
-    "456 Main Street, Indianapolis, IN 46202",
-    "789 University Ave, West Lafayette, IN 47906",
-    "321 College Mall, Bloomington, IN 47401"
+    "Kelly School of business 1315 E 10th St Bloomington, IN 47405",
+    "School of business 2931 E 10th St Bloomington In 47405",
+    "Bookmarket Eatery 1320 E 10th St Bloomington In 47405",
+    "McNutt C store 1101 N. Fee Lane Bloomington IN 47405",
+    "Briscoe C-Store 1225 N Fee Lane Bloomington IN 47405",
+    "Union Street 10th and Union St Bloomington In 47405",
+    "Ballentine Cafe 2931 E 10th St Bloomington In 47405",
+    "Art Shop at Eskenazi 1201 E 7th ST Room 007 Bloomington IN 47405",
+    "School of ED Cafe: 1160, 201 N Rose Ave, Bloomington In 47405",
+    "IMU  Gift Shop: 900 E 7th St Bloomington, IN 47405",
+    "Bloomingfood East 3220 e 3RD sT bLOOMINGTON in 47401",
+    "Bloomingfood West 316 W 6th St Bloomington IN 47404"
   ]
 
   return (
@@ -67,7 +74,7 @@ export default function Sushi() {
               onClick={() => setShowBulkOrder(true)}
               className="bg-navy-light hover:bg-navy text-white font-semibold py-3 px-8 rounded-lg text-lg uppercase tracking-wide transition-all duration-300 transform hover:scale-105"
             >
-              Order in Bulk (Min 25 plates)
+              Order in Bulk
             </button>
           </div>
         </div>
@@ -120,33 +127,43 @@ export default function Sushi() {
           <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
             <h3 className="text-2xl font-bold text-navy mb-4">Bulk Order Form</h3>
             <p className="text-gray-600 mb-6">
-              Minimum order: 25 sushi plates. Please fill out the form below and we'll get back to you with pricing and availability.
+              Bulk sushi orders start from $250. Please fill out the form below and we&apos;ll get back to you with pricing and availability.
             </p>
             <form 
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
 
                 const form = e.currentTarget as HTMLFormElement;
                 const data = new FormData(form);
+                const name = String(data.get("name") ?? "").trim();
+                const email = String(data.get("email") ?? "").trim();
+                const phone = String(data.get("phone") ?? "").trim();
+                const details = String(data.get("details") ?? "").trim();
+
+                // Save to dashboard (admin can see in clockin-out app)
+                try {
+                  await fetch('/api/sushi-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, phone, details }),
+                  });
+                } catch (_) {}
 
                 const FORM_ID = "1FAIpQLScMpCFZhbZy035xrPMp3n68z4mvO6SJRQMcxP5o6NeLBnmqSA";
-
-                // Correct entry IDs from your Google Form (updated)
                 const ENTRY_NAME = "entry.1270743351";
                 const ENTRY_EMAIL = "entry.2004462391"; 
                 const ENTRY_PHONE = "entry.1077607953";
                 const ENTRY_DETAILS = "entry.35698300";
 
                 const params = new URLSearchParams({
-                  [ENTRY_NAME]: String(data.get("name") ?? ""),
-                  [ENTRY_EMAIL]: String(data.get("email") ?? ""),
-                  [ENTRY_PHONE]: String(data.get("phone") ?? ""),
-                  [ENTRY_DETAILS]: String(data.get("details") ?? ""),
+                  [ENTRY_NAME]: name,
+                  [ENTRY_EMAIL]: email,
+                  [ENTRY_PHONE]: phone,
+                  [ENTRY_DETAILS]: details,
                 });
 
                 const submitUrl = `https://docs.google.com/forms/d/e/${FORM_ID}/formResponse?${params.toString()}`;
                 
-                // Create completely hidden iframe to submit silently
                 const iframe = document.createElement('iframe');
                 iframe.style.display = 'none';
                 iframe.style.visibility = 'hidden';
@@ -159,7 +176,6 @@ export default function Sushi() {
                 iframe.src = submitUrl;
                 document.body.appendChild(iframe);
                 
-                // Clean up after submission
                 setTimeout(() => {
                   try {
                     document.body.removeChild(iframe);
@@ -195,7 +211,7 @@ export default function Sushi() {
               />
               <textarea 
                 name="details" 
-                placeholder="Sushi Order Details (minimum 25 plates)" 
+                placeholder="Sushi Order Details" 
                 rows={4}
                 required
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy-light"
