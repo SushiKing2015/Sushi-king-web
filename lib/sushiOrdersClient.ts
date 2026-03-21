@@ -1,85 +1,94 @@
-import { createClient } from '@supabase/supabase-js'
+import { insertSushiOrderRest, type SushiOrderRow } from '@/lib/sushiOrderRest'
 
-type OrderRow = {
-  name: string
-  email: string
-  phone: string
-  details: string
-}
-
-/**
- * Production-safe: ask the Next server for Supabase URL + anon key (`?bootstrap=1`)
- * so inserts use the same env as `SUSHI_ORDERS_*` / server `NEXT_PUBLIC_*`, not only
- * values baked into the client bundle at build time.
- */
-async function insertViaServerBootstrap(row: OrderRow): Promise<
+async function insertViaApi(row: SushiOrderRow): Promise<
   { ok: true } | { ok: false; error: string }
 > {
   if (typeof window === 'undefined') {
     return { ok: false, error: 'Not in browser' }
   }
-  const origin = window.location.origin
   try {
-    const cfgRes = await fetch(`${origin}/api/sushi-order?bootstrap=1`, {
-      credentials: 'same-origin',
-      cache: 'no-store',
-    })
-    const cfg = (await cfgRes.json()) as {
-      supabaseUrl?: string | null
-      supabaseAnonKey?: string | null
-    }
-    const url = (cfg.supabaseUrl || '').trim()
-    const key = (cfg.supabaseAnonKey || '').trim()
-    if (!url || !key) {
-      return { ok: false, error: 'Bootstrap: server returned no Supabase URL/key.' }
-    }
-    const sb = createClient(url, key)
-    const { error } = await sb.from('sushi_orders').insert(row)
-    if (error) return { ok: false, error: `Bootstrap insert: ${error.message}` }
-    return { ok: true }
-  } catch (e) {
-    return {
-      ok: false,
-      error:
-        e instanceof Error ? `Bootstrap: ${e.message}` : 'Bootstrap: network error',
-    }
-  }
-}
-
-async function insertViaApi(row: OrderRow): Promise<
-  { ok: true } | { ok: false; error: string; status?: number }
-> {
-  if (typeof window === 'undefined') {
-    return { ok: false, error: 'Not in browser' }
-  }
-  const url = `${window.location.origin}/api/sushi-order`
-  try {
-    const res = await fetch(url, {
+    const res = await fetch(`${window.location.origin}/api/sushi-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(row),
       credentials: 'same-origin',
       cache: 'no-store',
     })
-    const payload = (await res.json().catch(() => ({}))) as { error?: string }
+    const ct = res.headers.get('content-type') || ''
+    if (!ct.includes('application/json')) {
+      const t = (await res.text()).slice(0, 200)
+      return {
+        ok: false,
+        error: `POST /api/sushi-order returned non-JSON (${res.status}): ${t}`,
+      }
+    }
+    const payload = (await res.json()) as { error?: string; ok?: boolean }
     if (res.ok) return { ok: true }
     return {
       ok: false,
       error:
         typeof payload.error === 'string'
           ? payload.error
-          : `API error (${res.status})`,
-      status: res.status,
+          : `POST API ${res.status}`,
     }
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : 'Network error calling /api/sushi-order',
+      error: e instanceof Error ? e.message : 'POST /api/sushi-order failed',
     }
   }
 }
 
-async function insertViaBundledEnv(row: OrderRow): Promise<
+/**
+ * Load URL + key from the Next server (reads SUSHI_ORDERS_* first), then insert via REST from the browser.
+ */
+async function insertViaBootstrapRest(row: SushiOrderRow): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  if (typeof window === 'undefined') {
+    return { ok: false, error: 'Not in browser' }
+  }
+  try {
+    const cfgRes = await fetch(
+      `${window.location.origin}/api/sushi-order?bootstrap=1`,
+      { credentials: 'same-origin', cache: 'no-store' }
+    )
+    const ct = cfgRes.headers.get('content-type') || ''
+    if (!ct.includes('application/json')) {
+      const t = (await cfgRes.text()).slice(0, 200)
+      return {
+        ok: false,
+        error: `Bootstrap config not JSON (${cfgRes.status}): ${t}`,
+      }
+    }
+    const cfg = (await cfgRes.json()) as {
+      supabaseUrl?: string | null
+      supabaseAnonKey?: string | null
+      supabaseHost?: string | null
+    }
+    const url = (cfg.supabaseUrl || '').trim()
+    const key = (cfg.supabaseAnonKey || '').trim()
+    if (!url || !key) {
+      return {
+        ok: false,
+        error: `Bootstrap: empty URL/key (host: ${cfg.supabaseHost ?? 'unknown'})`,
+      }
+    }
+    const ins = await insertSushiOrderRest(url, key, row)
+    if (ins.ok) return { ok: true }
+    return {
+      ok: false,
+      error: `Bootstrap REST → ${cfg.supabaseHost ?? new URL(url).hostname}: ${ins.error}`,
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Bootstrap failed',
+    }
+  }
+}
+
+async function insertViaBundledRest(row: SushiOrderRow): Promise<
   { ok: true } | { ok: false; error: string }
 > {
   const supabaseUrl = (
@@ -94,34 +103,38 @@ async function insertViaBundledEnv(row: OrderRow): Promise<
   ).trim()
 
   if (!supabaseUrl || !supabaseKey) {
-    return {
-      ok: false,
-      error: 'Bundled env: no NEXT_PUBLIC Supabase URL/key in this build.',
-    }
+    return { ok: false, error: 'No NEXT_PUBLIC Supabase URL/key in bundle.' }
   }
 
-  const sb = createClient(supabaseUrl, supabaseKey)
-  const { error } = await sb.from('sushi_orders').insert(row)
-  if (error) return { ok: false, error: error.message }
-  return { ok: true }
+  const ins = await insertSushiOrderRest(supabaseUrl, supabaseKey, row)
+  if (ins.ok) return { ok: true }
+  return {
+    ok: false,
+    error: `Bundled NEXT_PUBLIC (${new URL(supabaseUrl).hostname}): ${ins.error}`,
+  }
 }
 
-export async function insertSushiOrder(row: OrderRow): Promise<
-  { ok: true } | { ok: false; error: string }
-> {
-  const bootstrap = await insertViaServerBootstrap(row)
-  if (bootstrap.ok) return { ok: true }
-
+/**
+ * Order: (1) server API — one hop, uses SUSHI_ORDERS_* on the server.
+ * (2) bootstrap + browser REST — same creds as server if (1) missing/broken.
+ * (3) NEXT_PUBLIC_* REST — last resort (your NEXT_PUBLIC_* is a different project than SUSHI_ORDERS_*).
+ */
+export async function insertSushiOrder(
+  row: SushiOrderRow
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const api = await insertViaApi(row)
   if (api.ok) return { ok: true }
 
-  const bundled = await insertViaBundledEnv(row)
+  const boot = await insertViaBootstrapRest(row)
+  if (boot.ok) return { ok: true }
+
+  const bundled = await insertViaBundledRest(row)
   if (bundled.ok) return { ok: true }
 
   return {
     ok: false,
-    error: [bootstrap.error, `POST: ${api.error}`, `Bundled: ${bundled.error}`].join(
-      ' | '
+    error: [`1) ${api.error}`, `2) ${boot.error}`, `3) ${bundled.error}`].join(
+      '\n'
     ),
   }
 }
