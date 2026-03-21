@@ -2,49 +2,44 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
-// Ensure Node runtime on Vercel (stable env + fetch to Supabase)
 export const runtime = 'nodejs'
 
-/**
- * Read env inside each request so Vercel always sees current Production variables
- * (avoid stale top-level reads + NEXT_PUBLIC inlining quirks).
- */
+const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' }
+
+/** Same resolution order as your .env: dedicated sushi vars first, then site Supabase. */
 function getSushiOrdersConfig() {
-  const url =
+  const url = (
     process.env.SUSHI_ORDERS_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUSHI_ORDERS_SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     ''
-  const key =
+  ).trim()
+  const key = (
     process.env.SUSHI_ORDERS_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUSHI_ORDERS_SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     ''
+  ).trim()
+
   let host = ''
   try {
-    if (url) host = new URL(url.trim()).hostname
+    if (url) host = new URL(url).hostname
   } catch {
     host = '(invalid URL)'
   }
-  return {
-    url: url.trim(),
-    key: key.trim(),
-    host,
-    usingDedicatedEnv: !!(
-      process.env.SUSHI_ORDERS_SUPABASE_URL &&
-      process.env.SUSHI_ORDERS_SUPABASE_ANON_KEY
-    ),
-  }
+
+  return { url, key, host }
 }
 
-/** GET = safe check that production is pointed at the right Supabase (no secrets). */
 export async function GET() {
-  const { url, key, host, usingDedicatedEnv } = getSushiOrdersConfig()
-  return NextResponse.json({
-    ok: !!(url && key),
-    supabaseHost: host || null,
-    usingSushiOrdersEnvVars: usingDedicatedEnv,
-    hint:
-      'This must match the Supabase project your clock-in admin app uses. After changing env on Vercel, redeploy.',
-  })
+  const { url, key, host } = getSushiOrdersConfig()
+  return NextResponse.json(
+    {
+      ok: !!(url && key),
+      supabaseHost: host || null,
+    },
+    { headers: NO_STORE }
+  )
 }
 
 export async function POST(request: Request) {
@@ -52,15 +47,10 @@ export async function POST(request: Request) {
     const { url: sushiOrdersUrl, key: sushiOrdersKey, host } = getSushiOrdersConfig()
 
     if (!sushiOrdersUrl || !sushiOrdersKey) {
-      console.error(
-        'Sushi order API: missing Supabase URL or anon key. Set SUSHI_ORDERS_* or NEXT_PUBLIC_* on Vercel (Production) and redeploy.'
-      )
+      console.error('Sushi order API: missing Supabase URL or anon key in server environment.')
       return NextResponse.json(
-        {
-          error:
-            'Server is not configured to save orders to the dashboard. Add SUSHI_ORDERS_SUPABASE_URL and SUSHI_ORDERS_SUPABASE_ANON_KEY (same as clock-in app Supabase) on Vercel for Production, then redeploy.',
-        },
-        { status: 503 }
+        { error: 'Server missing Supabase URL or anon key for sushi orders.' },
+        { status: 503, headers: NO_STORE }
       )
     }
 
@@ -73,7 +63,7 @@ export async function POST(request: Request) {
     if (!name || !email || !phone || !details) {
       return NextResponse.json(
         { error: 'Missing required fields: name, email, phone, details' },
-        { status: 400 }
+        { status: 400, headers: NO_STORE }
       )
     }
 
@@ -93,16 +83,16 @@ export async function POST(request: Request) {
           supabaseHost: host,
           code: error.code,
         },
-        { status: 500 }
+        { status: 500, headers: NO_STORE }
       )
     }
 
-    return NextResponse.json({ ok: true, supabaseHost: host })
+    return NextResponse.json({ ok: true, supabaseHost: host }, { headers: NO_STORE })
   } catch (e) {
     console.error('Sushi order API error:', e)
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Server error' },
-      { status: 500 }
+      { status: 500, headers: NO_STORE }
     )
   }
 }
