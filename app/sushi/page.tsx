@@ -140,14 +140,27 @@ export default function Sushi() {
                 const phone = String(data.get("phone") ?? "").trim();
                 const details = String(data.get("details") ?? "").trim();
 
-                // Save to dashboard (admin can see in clockin-out app)
+                // Save to admin dashboard (clock-in app) — same Supabase as SUSHI_ORDERS_* env
+                let dashboardSaveFailed = false
+                let dashboardErrorMessage = ''
                 try {
-                  await fetch('/api/sushi-order', {
+                  const res = await fetch('/api/sushi-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, email, phone, details }),
-                  });
-                } catch (_) {}
+                  })
+                  const payload = await res.json().catch(() => ({}))
+                  if (!res.ok) {
+                    dashboardSaveFailed = true
+                    dashboardErrorMessage =
+                      typeof payload.error === 'string'
+                        ? payload.error
+                        : `Could not save to dashboard (${res.status}).`
+                  }
+                } catch {
+                  dashboardSaveFailed = true
+                  dashboardErrorMessage = 'Network error saving to dashboard.'
+                }
 
                 const FORM_ID = "1FAIpQLScMpCFZhbZy035xrPMp3n68z4mvO6SJRQMcxP5o6NeLBnmqSA";
                 const ENTRY_NAME = "entry.1270743351";
@@ -182,7 +195,15 @@ export default function Sushi() {
                   } catch (e) {}
                 }, 3000);
 
-                alert("Thanks! Your bulk order request has been sent. We'll reach out shortly.");
+                if (dashboardSaveFailed) {
+                  alert(
+                    `Your request was sent (you may still get an email confirmation).\n\n` +
+                      `However, it did NOT save to the admin Sushi Orders dashboard:\n${dashboardErrorMessage}\n\n` +
+                      `Fix: In Vercel (or .env.local), set SUSHI_ORDERS_SUPABASE_URL and SUSHI_ORDERS_SUPABASE_ANON_KEY to the same Supabase project as the clock-in app, and run the sushi_orders SQL + RLS policies in that project.`
+                  )
+                } else {
+                  alert("Thanks! Your bulk order request has been sent. We'll reach out shortly.")
+                }
                 form.reset();
                 setShowBulkOrder(false);
               }}
