@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import NavBar from '@/components/NavBar'
+import { insertSushiOrder } from '@/lib/sushiOrdersClient'
 
 export default function Sushi() {
   const [showBulkOrder, setShowBulkOrder] = useState(false)
@@ -140,27 +141,17 @@ export default function Sushi() {
                 const phone = String(data.get("phone") ?? "").trim();
                 const details = String(data.get("details") ?? "").trim();
 
-                // Save to admin dashboard (clock-in app) — same Supabase as SUSHI_ORDERS_* env
-                let dashboardSaveFailed = false
-                let dashboardErrorMessage = ''
-                try {
-                  const res = await fetch('/api/sushi-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, phone, details }),
-                  })
-                  const payload = await res.json().catch(() => ({}))
-                  if (!res.ok) {
-                    dashboardSaveFailed = true
-                    dashboardErrorMessage =
-                      typeof payload.error === 'string'
-                        ? payload.error
-                        : `Could not save to dashboard (${res.status}).`
-                  }
-                } catch {
-                  dashboardSaveFailed = true
-                  dashboardErrorMessage = 'Network error saving to dashboard.'
-                }
+                // Save to admin dashboard: insert from browser (works on Vercel; uses NEXT_PUBLIC_* Supabase)
+                const dashboardResult = await insertSushiOrder({
+                  name,
+                  email,
+                  phone,
+                  details,
+                })
+                const dashboardSaveFailed = !dashboardResult.ok
+                const dashboardErrorMessage = !dashboardResult.ok
+                  ? dashboardResult.error
+                  : ''
 
                 const FORM_ID = "1FAIpQLScMpCFZhbZy035xrPMp3n68z4mvO6SJRQMcxP5o6NeLBnmqSA";
                 const ENTRY_NAME = "entry.1270743351";
@@ -198,8 +189,7 @@ export default function Sushi() {
                 if (dashboardSaveFailed) {
                   alert(
                     `Your request was sent (you may still get an email confirmation).\n\n` +
-                      `However, it did NOT save to the admin Sushi Orders dashboard:\n${dashboardErrorMessage}\n\n` +
-                      `Fix: In Vercel (or .env.local), set SUSHI_ORDERS_SUPABASE_URL and SUSHI_ORDERS_SUPABASE_ANON_KEY to the same Supabase project as the clock-in app, and run the sushi_orders SQL + RLS policies in that project.`
+                      `It did not save to the admin Sushi Orders list:\n${dashboardErrorMessage}`
                   )
                 } else {
                   alert("Thanks! Your bulk order request has been sent. We'll reach out shortly.")
