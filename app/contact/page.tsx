@@ -18,9 +18,22 @@ export default function Contact() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-navy mb-8">
               CONTACT US
             </h1>
-            <p className="text-xl text-black font-bold max-w-3xl mx-auto whitespace-pre-line">
-              {"Get in touch with us\nMarilyn Tial lang: +1 (812) 325-2823\nRonald Bawier: +1 (812) 327-9019"}
+            <p className="text-xl text-black font-bold max-w-3xl mx-auto mb-6">
+              Get in touch with us
             </p>
+            {/* Single grid so both rows share column widths: names align left, phones align right */}
+            <div className="mx-auto w-full max-w-xl text-xl text-black font-bold">
+              <div className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-3 items-baseline text-left">
+                <span>Marilyn Tial Hlei lang:</span>
+                <span className="tabular-nums text-right whitespace-nowrap">
+                  +1 (812) 325-2823
+                </span>
+                <span>Ronald Bawier:</span>
+                <span className="tabular-nums text-right whitespace-nowrap">
+                  +1 (812) 327-9019
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
