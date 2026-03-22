@@ -30,8 +30,8 @@ export async function insertSushiOrderRest(
       Authorization: `Bearer ${key}`,
       Prefer: 'return=minimal',
     },
-    // PostgREST accepts a single object for one row
-    body: JSON.stringify(row),
+    // Array form is what PostgREST/Supabase examples use for inserts
+    body: JSON.stringify([row]),
   })
 
   if (res.ok) return { ok: true }
