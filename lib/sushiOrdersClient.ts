@@ -23,13 +23,23 @@ async function insertViaApi(row: SushiOrderRow): Promise<
       }
     }
     const payload = (await res.json()) as { error?: string; ok?: boolean }
-    if (res.ok) return { ok: true }
+    if (!res.ok) {
+      return {
+        ok: false,
+        error:
+          typeof payload.error === 'string'
+            ? payload.error
+            : `POST API ${res.status}`,
+      }
+    }
+    // Do not trust HTTP 200 alone (proxies / wrong routes can return HTML pages mis-parsed as JSON).
+    if (payload.ok === true) return { ok: true }
     return {
       ok: false,
       error:
         typeof payload.error === 'string'
           ? payload.error
-          : `POST API ${res.status}`,
+          : `API 200 but missing ok:true (got: ${JSON.stringify(payload).slice(0, 120)})`,
     }
   } catch (e) {
     return {
